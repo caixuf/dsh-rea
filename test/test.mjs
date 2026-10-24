@@ -34,6 +34,39 @@ console.log('  ✓ 工具执行结果摘要:');
 console.log('   ', String(capResult).slice(0, 160).replace(/\n/g, ' '));
 assert(capResult && String(capResult).length > 0, '应返回 inspect_apktool_client 结果');
 
+// 2b. 回归测试：apktool 能力必须真的 available
+//
+// 🔴 历史缺陷：插件把 apktool.bat 交给 REA，而 REA 用 execFile（无 shell）执行，
+// Windows 的 CreateProcess 不能直接执行 .bat/.cmd → `spawn EINVAL` → apktool 能力
+// 永远 unavailable，表现为 capability_unavailable/unsupported_provider。
+// 修法是改用 ApktoolLauncher.exe（转发 java -jar apktool.jar）。
+// 这里断言 REA 报告的 provider 是真的可用，而不是 unsupported_provider。
+console.log('\n[2b] 回归测试：apktool 能力可用性...');
+{
+  const payload = typeof capResult === 'string' ? JSON.parse(capResult) : capResult;
+  const errorCode = payload?.error?.code;
+  const provider = payload?.provider?.id ?? payload?.normalized_result?.client?.command_source;
+  assert(
+    !errorCode,
+    `apktool 能力不可用（error.code=${errorCode}）。Windows 上 .bat 无法被 execFile 启动，` +
+    `请确认 rea-tools\\ApktoolLauncher.exe 存在且可执行。`
+  );
+  const version = payload?.normalized_result?.client?.apktool_version;
+  assert(version, `未取得 apktool 版本（provider=${provider}）`);
+  console.log(`  ✓ apktool 能力可用，版本 ${version}`);
+}
+
+// 2c. 回归测试：adb 能力必须真的 available（REA_ADB_PATH 需要绝对路径的 .exe）
+console.log('\n[2c] 回归测试：adb 能力可用性...');
+{
+  const adbResult = await bridge.callTool('inspect_adb_client', {});
+  const payload = typeof adbResult === 'string' ? JSON.parse(adbResult) : adbResult;
+  assert(!payload?.error?.code, `adb 能力不可用（error.code=${payload?.error?.code}）`);
+  const version = payload?.normalized_result?.client?.version;
+  assert(version, '未取得 adb 版本');
+  console.log(`  ✓ adb 能力可用，版本 ${version}`);
+}
+
 // 3. 测试模拟 Cordis 注入
 console.log('\n[3] 测试 Cordis 插件注册流程...');
 const registeredTools = [];

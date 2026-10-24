@@ -51,11 +51,60 @@
 
 ---
 
+## 外部工具依赖
+
+REA 的三类能力需要调用方自带外部工具，插件会自动探测并注入绝对路径：
+
+| 能力 | 依赖 | 环境变量 | 缺失时的表现 |
+|---|---|---|---|
+| APK 资源解码 | apktool 2.9.3 | `REA_APKTOOL_COMMAND` | `capability_unavailable` / `unsupported_provider` |
+| APK 类/方法反编译 | jadx-headless-mcp 0.7.1 JAR | `REA_JADX_MCP_JAR` | 同上 |
+| 真机调试 | adb | `REA_ADB_PATH` | 同上 |
+
+默认探测位置（可用 config 覆盖）：
+
+```
+<userprofile>\Downloads\oss-study\rea-tools\ApktoolLauncher.exe   # apktool
+<userprofile>\Downloads\oss-study\rea-tools\jadx-headless-mcp-0.7.1-all.jar
+<userprofile>\Downloads\android-toolchain\android-sdk\platform-tools\adb.exe
+```
+
+### 🔴 Windows 上的 apktool 陷阱
+
+**不要把 `apktool.bat` 交给 REA。** REA 内部用 `execFile`（无 shell）执行 apktool，
+而 Windows 的 `CreateProcess` 不能直接执行 `.bat`/`.cmd`：
+
+```
+Error: spawn EINVAL
+```
+
+结果就是 apktool 能力**永远** unavailable，且错误信息指向 REA 而不是根因。
+
+正确做法是用 `tools/ApktoolLauncher.exe` —— 一层转发器（`java -jar apktool.jar`），
+用 .NET Framework 自带的 `csc.exe` 编译，无需任何构建工具链：
+
+```powershell
+csc /nologo /target:exe /out:ApktoolLauncher.exe tools\ApktoolLauncher.cs
+```
+
+编译后与 `apktool.jar` 放同一目录，并提供 `java-path.txt`（每行一个 JDK 绝对路径）：
+
+```
+C:\Users\<you>\Downloads\android-toolchain\jdk17
+```
+
+launcher 的 java 解析顺序：`$JAVA_HOME\bin\java.exe` → `java-path.txt` → `PATH`。
+
+---
+
 ## 运行测试
 
 ```powershell
 node test/test.mjs
 ```
+
+测试包含 apktool / adb 能力的回归断言——能力不可用时测试会失败并给出根因提示，
+避免再次出现「以为配好了、其实一直是 unavailable」的情况。
 
 ---
 

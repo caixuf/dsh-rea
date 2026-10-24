@@ -1,6 +1,6 @@
 {
   "name": "dsh-rea",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "DSH plugin for REA (Reverse Engineer Anything) — Native Binary, Android APK, and Web/Electron static reverse engineering tools for AI agents.",
   "type": "module",
   "main": "./index.mjs",

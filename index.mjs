@@ -12,6 +12,8 @@ export async function apply(ctx, config = {}) {
     reaScriptPath: config.reaScriptPath,
     apktoolPath: config.apktoolPath,
     javaHome: config.javaHome,
+    adbPath: config.adbPath,
+    jadxJarPath: config.jadxJarPath,
     logger,
   });
 
